@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.env.keys
+.sesi_cache.json
+sesi_modules/
+reports/

@@ -1,0 +1,395 @@
+/*
+  Auto Webpage Diagnostics — main.sesi
+  ======================================
+  Exported module. Import with:
+    allow "main" in with Diagnostics
+    allow "main" in with { run, seo, performance, ... }
+
+  Exports:
+    run(targetUrl, outputDir?)        — full suite, returns report object
+    performance(page, targetUrl)      — load time check
+    seo(page)                         — SEO signals
+    accessibility(page)               — a11y signals
+    security(page, targetUrl)         — HTTPS + CSP
+    links(page)                       — broken link scan
+    console(page)                     — JS error detection
+    resources(page)                   — DOM size + asset counts
+    save_report(report, outputDir)    — writes report.md + screenshot
+    make_separator(label)             — formatting utility
+    pass_icon(ok)                     — ✅ / ❌
+    warn_icon(ok)                     — ✅ / ⚠️
+*/
+
+allow "std/browser" in with Browser
+allow "std/time" in with Time
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+export fn make_separator(label: string) -> string {
+  return "\n══════════════════════════════════════════\n  " + label + "\n══════════════════════════════════════════"
+}
+
+export fn pass_icon(ok: bool) -> string {
+  if ok { return "✅" }
+  return "❌"
+}
+
+export fn warn_icon(ok: bool) -> string {
+  if ok { return "✅" }
+  return "⚠️ "
+}
+
+// ─── Individual Check Functions ───────────────────────────────────────────────
+
+export fn performance(page, targetUrl: string) -> object {
+  let results = []
+  let pageTitle = ""
+  let pageLoadMs = 0
+  let loadOk = false
+
+  print make_separator("Page Load & Performance")
+
+  try {
+    let t0 = page.evaluate("Date.now()")
+    page.goto(targetUrl)
+    let t1 = page.evaluate("Date.now()")
+    pageLoadMs = t1 - t0
+    pageTitle = page.title()
+    loadOk = true
+    print pass_icon(true) "Page loaded in" pageLoadMs "ms"
+    print "    Title:" pageTitle
+  } catch (e) {
+    print pass_icon(false) "Page failed to load:" e
+    push(results, {"check": "Page Load", "status": "FAIL", "detail": str(e)})
+    return {"ok": false, "results": results, "title": "", "loadMs": 0}
+  }
+
+  let perfCheck = "PASS"
+  if pageLoadMs > 3000 { perfCheck = "WARN" }
+  if pageLoadMs > 6000 { perfCheck = "FAIL" }
+  push(results, {"check": "Page Load Time", "status": perfCheck, "detail": str(pageLoadMs) + "ms"})
+
+  return {"ok": true, "results": results, "title": pageTitle, "loadMs": pageLoadMs}
+}
+
+export fn seo(page) -> object {
+  let results = []
+
+  print make_separator("SEO Checks")
+
+  let metaDesc  = page.evaluate("document.querySelector('meta[name=\"description\"]')?.content || ''")
+  let h1Count   = page.evaluate("document.querySelectorAll('h1').length")
+  let canonical = page.evaluate("document.querySelector('link[rel=\"canonical\"]')?.href || ''")
+  let robotsMeta = page.evaluate("document.querySelector('meta[name=\"robots\"]')?.content || 'index, follow'")
+  let ogTitle   = page.evaluate("document.querySelector('meta[property=\"og:title\"]')?.content || ''")
+
+  let hasMeta      = len(metaDesc) > 0
+  let hasH1        = h1Count > 0
+  let oneH1        = h1Count == 1
+  let hasCanonical = len(canonical) > 0
+  let hasOg        = len(ogTitle) > 0
+
+  print pass_icon(hasMeta)      "Meta description:" metaDesc
+  print pass_icon(hasH1)        "H1 tags found:" h1Count
+  print warn_icon(oneH1)        "Single H1 (recommended):" str(oneH1)
+  print warn_icon(hasCanonical) "Canonical URL:" canonical
+  print warn_icon(hasOg)        "Open Graph title:" ogTitle
+  print "    Robots meta:" robotsMeta
+
+  push(results, {"check": "SEO - Meta Description", "status": str(hasMeta),      "detail": metaDesc})
+  push(results, {"check": "SEO - H1 Present",       "status": str(hasH1),        "detail": str(h1Count) + " found"})
+  push(results, {"check": "SEO - Single H1",        "status": str(oneH1),        "detail": str(h1Count) + " h1 tags"})
+  push(results, {"check": "SEO - Canonical",        "status": str(hasCanonical), "detail": canonical})
+
+  return {"results": results, "metaDesc": metaDesc, "h1Count": h1Count, "canonical": canonical, "ogTitle": ogTitle, "robotsMeta": robotsMeta, "hasMeta": hasMeta, "hasOg": hasOg}
+}
+
+export fn accessibility(page) -> object {
+  let results = []
+
+  print make_separator("Accessibility Checks")
+
+  let imgsMissingAlt    = page.evaluate("Array.from(document.querySelectorAll('img')).filter(i => !i.alt).length")
+  let inputsMissingLabel = page.evaluate("Array.from(document.querySelectorAll('input:not([type=hidden])')).filter(i => !i.labels || i.labels.length === 0).length")
+  let langAttr          = page.evaluate("document.documentElement.lang || ''")
+  let hasLang           = len(langAttr) > 0
+  let viewportMeta      = page.evaluate("document.querySelector('meta[name=\"viewport\"]')?.content || ''")
+  let hasViewport       = len(viewportMeta) > 0
+
+  let a11yImgOk   = imgsMissingAlt == 0
+  let a11yInputOk = inputsMissingLabel == 0
+
+  print pass_icon(a11yImgOk)   "Images missing alt text:" imgsMissingAlt
+  print pass_icon(a11yInputOk) "Inputs missing labels:" inputsMissingLabel
+  print pass_icon(hasLang)     "HTML lang attribute:" langAttr
+  print pass_icon(hasViewport) "Viewport meta tag:" viewportMeta
+
+  push(results, {"check": "A11Y - Images Alt Text", "status": str(a11yImgOk),   "detail": str(imgsMissingAlt) + " missing"})
+  push(results, {"check": "A11Y - Input Labels",    "status": str(a11yInputOk), "detail": str(inputsMissingLabel) + " missing"})
+  push(results, {"check": "A11Y - Lang Attribute",  "status": str(hasLang),     "detail": langAttr})
+  push(results, {"check": "A11Y - Viewport Meta",   "status": str(hasViewport), "detail": viewportMeta})
+
+  return {"results": results, "imgsMissingAlt": imgsMissingAlt, "inputsMissingLabel": inputsMissingLabel, "langAttr": langAttr, "viewportMeta": viewportMeta}
+}
+
+export fn security(page, targetUrl: string) -> object {
+  let results = []
+
+  print make_separator("Security Headers")
+
+  let hasHttps = contains(targetUrl, "https://")
+  let csp      = page.evaluate("document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]')?.content || ''")
+  let hasCsp   = len(csp) > 0
+
+  print pass_icon(hasHttps) "HTTPS enabled:" str(hasHttps)
+  print warn_icon(hasCsp)   "Content-Security-Policy (meta):" str(hasCsp)
+
+  push(results, {"check": "Security - HTTPS",    "status": str(hasHttps), "detail": targetUrl})
+  push(results, {"check": "Security - CSP Meta", "status": str(hasCsp),   "detail": csp})
+
+  return {"results": results, "hasHttps": hasHttps, "hasCsp": hasCsp}
+}
+
+export fn links(page) -> object {
+  let results = []
+
+  print make_separator("Broken Link Scan (sampling first 20)")
+
+  let allHrefs    = page.evaluate("Array.from(document.querySelectorAll('a[href]')).map(a => a.href).filter(h => h.startsWith('http')).slice(0, 20)")
+  let brokenLinks = []
+  let checkedLinks = 0
+
+  for href in allHrefs {
+    checkedLinks = checkedLinks + 1
+    try {
+      web_get(href)
+      print "    🔗" href "→ OK"
+    } catch (e) {
+      print "    ❌" href "→ BROKEN"
+      push(brokenLinks, href)
+    }
+  }
+
+  let brokenCount = len(brokenLinks)
+  let linksOk     = brokenCount == 0
+
+  print pass_icon(linksOk) "Links checked:" checkedLinks "| Broken:" brokenCount
+  push(results, {"check": "Links - Broken Count", "status": str(linksOk), "detail": str(brokenCount) + " broken of " + str(checkedLinks) + " checked"})
+
+  return {"results": results, "brokenLinks": brokenLinks, "brokenCount": brokenCount, "checkedLinks": checkedLinks}
+}
+
+export fn console(page) -> object {
+  let results = []
+
+  print make_separator("Console & JavaScript Errors")
+
+  let jsErrors  = page.evaluate("window.__sesi_diag_errors ? window.__sesi_diag_errors.length : 0")
+  let noJsErrors = jsErrors == 0
+
+  print warn_icon(noJsErrors) "Detectable JS errors:" jsErrors
+  push(results, {"check": "Console - JS Errors", "status": str(noJsErrors), "detail": str(jsErrors) + " errors detected"})
+
+  return {"results": results, "jsErrors": jsErrors}
+}
+
+export fn resources(page) -> object {
+  let results = []
+
+  print make_separator("Page Size & Resource Stats")
+
+  let domNodes    = page.evaluate("document.querySelectorAll('*').length")
+  let scriptCount = page.evaluate("document.querySelectorAll('script[src]').length")
+  let styleCount  = page.evaluate("document.querySelectorAll('link[rel=stylesheet]').length")
+  let imgCount    = page.evaluate("document.querySelectorAll('img').length")
+
+  let domHealthy = domNodes < 1500
+  let scriptOk   = scriptCount < 20
+  let styleOk    = styleCount < 10
+
+  print warn_icon(domHealthy) "DOM nodes:" domNodes "(recommended < 1500)"
+  print warn_icon(scriptOk)   "External scripts:" scriptCount
+  print warn_icon(styleOk)    "External stylesheets:" styleCount
+  print "    🖼️  Images:" imgCount
+
+  push(results, {"check": "Resources - DOM Size",     "status": str(domHealthy), "detail": str(domNodes) + " nodes"})
+  push(results, {"check": "Resources - Scripts",      "status": str(scriptOk),   "detail": str(scriptCount) + " external scripts"})
+  push(results, {"check": "Resources - Stylesheets",  "status": str(styleOk),    "detail": str(styleCount) + " stylesheets"})
+
+  return {"results": results, "domNodes": domNodes, "scriptCount": scriptCount, "styleCount": styleCount, "imgCount": imgCount}
+}
+
+// ─── Report Builder ───────────────────────────────────────────────────────────
+
+export fn save_report(report: object, outputDir: string) -> string {
+  let targetUrl   = report["url"]
+  let pageTitle   = report["title"]
+  let loadMs      = report["loadMs"]
+  let seo         = report["seo"]
+  let a11y        = report["a11y"]
+  let security    = report["security"]
+  let links       = report["links"]
+  let console     = report["console"]
+  let resources   = report["resources"]
+  let allResults  = report["results"]
+  let date    = Time.format(Time.now(), {"dateStyle": "medium"})
+  let time    = Time.format(Time.now(), {"timeStyle": "medium"})
+
+  // Screenshot
+  let screenshotPath = outputDir + "/" +pageTitle + "-screenshot.png"
+  print make_separator("Capturing Screenshot")
+  try {
+    report["page"].screenshot({"path": screenshotPath})
+    print pass_icon(true) "Screenshot saved to" screenshotPath
+  } catch (e) {
+    print pass_icon(false) "Screenshot failed:" e
+  }
+
+  // Build markdown
+  print make_separator("Saving Report")
+
+  prompt reportContent {"# Webpage Diagnostic Report
+
+**URL:** " targetUrl "
+**Page Title:** " pageTitle "
+**Generated:** Auto Webpage Diagnostics v1.0 on " date " at " time "
+
+---
+
+## Performance
+- Load Time: " loadMs "ms
+- DOM Nodes: " resources["domNodes"] "
+- External Scripts: " resources["scriptCount"] "
+- External Stylesheets: " resources["styleCount"] "
+- Images: " resources["imgCount"] "
+
+## SEO
+- Meta Description: " str(seo["hasMeta"]) "
+- H1 Tags: " seo["h1Count"] "
+- Canonical URL: " seo["canonical"] "
+- Open Graph Title: " str(seo["hasOg"]) "
+- Robots Meta: " seo["robotsMeta"] "
+
+## Accessibility
+- Images Missing Alt: " a11y["imgsMissingAlt"] "
+- Inputs Missing Labels: " a11y["inputsMissingLabel"] "
+- HTML Lang Attribute: " a11y["langAttr"] "
+- Viewport Meta: " a11y["viewportMeta"] "
+
+## Security
+- HTTPS: " str(security["hasHttps"]) "
+- CSP Meta Tag: " str(security["hasCsp"]) "
+
+## Links
+- Checked: " links["checkedLinks"] "
+- Broken: " links["brokenCount"] "
+
+## Console
+- JS Errors Detected: " console["jsErrors"] "
+
+---
+
+## Check Results Table
+
+| Check | Status | Detail |
+|-------|--------|--------|"}
+
+  let tableRows = ""
+  for r in allResults {
+    prompt row {"| " r["check"] " | " r["status"] " | " r["detail"] " |
+"}
+    tableRows = tableRows + row
+  }
+
+  let finalReport = reportContent + "
+" + tableRows + "
+---
+*Report generated by Auto Webpage Diagnostics — powered by Sesi & std/browser*
+"
+
+  let reportPath = outputDir + "/report.md"
+  try {
+    write_file(reportPath, finalReport)
+    print pass_icon(true) "Report saved to" reportPath
+  } catch (e) {
+    print pass_icon(false) "Failed to write report:" e
+  }
+
+  return reportPath
+}
+
+// ─── Full Suite ───────────────────────────────────────────────────────────────
+
+export fn run(targetUrl: string, outputDir: string) -> object {
+  print make_separator("Auto Webpage Diagnostics")
+  print "🔍 Target:" targetUrl
+
+  try { make_dir(outputDir) } catch (e) {}
+
+  print "🚀 Launching headless browser..."
+  let browser = Browser.launch({"headless": true})
+  let page    = browser.newPage()
+
+  let allResults = []
+
+  // 1. Performance (also navigates to the page)
+  let perf = performance(page, targetUrl)
+  for r in perf["results"] { push(allResults, r) }
+
+  if !perf["ok"] {
+    browser.close()
+    return {"ok": false, "url": targetUrl, "results": allResults}
+  }
+
+  // 2. SEO
+  let seo = seo(page)
+  for r in seo["results"] { push(allResults, r) }
+
+  // 3. Accessibility
+  let a11y = accessibility(page)
+  for r in a11y["results"] { push(allResults, r) }
+
+  // 4. Security
+  let security = security(page, targetUrl)
+  for r in security["results"] { push(allResults, r) }
+
+  // 5. Links
+  let links = links(page)
+  for r in links["results"] { push(allResults, r) }
+
+  // 6. Console
+  let console = console(page)
+  for r in console["results"] { push(allResults, r) }
+
+  // 7. Resources
+  let resources = resources(page)
+  for r in resources["results"] { push(allResults, r) }
+
+  // 8. Save report + screenshot
+  let report = {"url": targetUrl, "title": perf["title"], "loadMs": perf["loadMs"], "seo": seo, "a11y": a11y, "security": security, "links": links, "console": console, "resources": resources, "results": allResults, "page": page}
+  let reportPath = save_report(report, outputDir)
+
+  page.close()
+  browser.close()
+
+  // Final summary
+  let totalChecks = len(allResults)
+  let passCount   = 0
+  let failCount   = 0
+
+  for r in allResults {
+    let s = r["status"]
+    if s == "true" || s == "PASS" {
+      passCount = passCount + 1
+    } else {
+      failCount = failCount + 1
+    }
+  }
+
+  print make_separator("Diagnostic Complete")
+  print "📄 Report:" reportPath
+  print "📸 Screenshot:" outputDir + "/screenshot.png"
+  print "📊 Summary:" totalChecks "checks |" passCount "passed |" failCount "flagged"
+
+  return {"ok": true, "url": targetUrl, "title": perf["title"], "reportPath": reportPath, "totalChecks": totalChecks, "passed": passCount, "flagged": failCount, "results": allResults, "seo": seo, "a11y": a11y, "security": security, "links": links, "console": console, "resources": resources}
+}

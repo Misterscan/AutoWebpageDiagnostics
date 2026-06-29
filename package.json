@@ -1,0 +1,14 @@
+{
+  "name": "AutoWebDiagnostics",
+  "version": "1.0.0",
+  "description": "Utilize Sesi's built-in std/browser library to create automated website diagnostic check scripts ready for autonomous AI-Agent debugging.",
+  "license": "MIT",
+  "author": "Misterscan",
+  "private": true,
+  "scripts": {
+    "sesi": "sesi -l",
+    "eval": "sesi -e",
+    "help": "sesi -h",
+    "lint": "sesi bin/lint.sesi"
+  }
+}
