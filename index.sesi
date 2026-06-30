@@ -9,65 +9,52 @@
     allow "AutoWebDiagnostics" in with {run, seo}
 */
 
-allow "main" in with {
-  run,
-  performance,
-  seo,
-  accessibility,
-  security,
-  links,
-  console,
-  resources,
-  save_report,
-  make_separator,
-  pass_icon,
-  warn_icon
-}
+allow "main" in with Main
 
 export fn run(targetUrl: string, outputDir: string) -> object {
-  return run(targetUrl, outputDir)
+  return Main.run(targetUrl, outputDir)
 }
 
 export fn performance(page, targetUrl: string) -> object {
-  return performance(page, targetUrl)
+  return Main.performance(page, targetUrl)
 }
 
 export fn seo(page) -> object {
-  return seo(page)
+  return Main.seo(page)
 }
 
 export fn accessibility(page) -> object {
-  return accessibility(page)
+  return Main.accessibility(page)
 }
 
 export fn security(page, targetUrl: string) -> object {
-  return security(page, targetUrl)
+  return Main.security(page, targetUrl)
 }
 
 export fn links(page) -> object {
-  return links(page)
+  return Main.links(page)
 }
 
 export fn console(page) -> object {
-  return console(page)
+  return Main.console(page)
 }
 
 export fn resources(page) -> object {
-  return resources(page)
+  return Main.resources(page)
 }
 
 export fn save_report(report: object, outputDir: string) -> string {
-  return save_report(report, outputDir)
+  return Main.save_report(report, outputDir)
 }
 
 export fn make_separator(label: string) -> string {
-  return make_separator(label)
+  return Main.make_separator(label)
 }
 
 export fn pass_icon(ok: bool) -> string {
-  return pass_icon(ok)
+  return Main.pass_icon(ok)
 }
 
 export fn warn_icon(ok: bool) -> string {
-  return warn_icon(ok)
+  return Main.warn_icon(ok)
 }

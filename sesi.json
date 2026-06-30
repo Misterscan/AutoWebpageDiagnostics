@@ -1,8 +1,0 @@
-{
-  "name": "AutoWebDiagnostics",
-  "version": "1.0.0",
-  "description": "Automated website diagnostic check scripts for autonomous AI-Agent debugging. Powered by std/browser.",
-  "license": "MIT",
-  "author": "Misterscan",
-  "dependencies": {}
-}
