@@ -85,17 +85,17 @@ fn minify_html(html: string) -> string {
 
 // Reusable I/O worker block
 fn process_file(in_path: string, out_path: string) {
-  print "Processing:" in_path
+  show "Processing:" in_path
   try {
     let source_html = read_file(in_path)
     let minified_html = minify_html(source_html)
     let success = write_file(out_path, minified_html)
     
     if success {
-      print "  -> Saved:" out_path "(" len(minified_html) "bytes )"
+      show "  -> Saved:" out_path "(" len(minified_html) "bytes )"
     }
   } catch (err) {
-    print "  -> File I/O Error processing" in_path ":" err
+    show "  -> File I/O Error processing" in_path ":" err
   }
 }
 
@@ -103,8 +103,8 @@ fn process_file(in_path: string, out_path: string) {
 // Execution Routing
 // ---------------------------------------------------------
 
-if contains(input_target, ".html") {
-  print "Running in Single File Mode..."
+if ends_with(input_target, ".html") {
+  show "Running in Single File Mode..."
   
   // Cleanly extract the filename from the path
   let path_parts = split(input_target, "/")
@@ -114,15 +114,15 @@ if contains(input_target, ".html") {
   process_file(input_target, target_out)
   
 } else {
-  print "Running in Batch Directory Mode..."
-  print "Scanning directory:" input_target
+  show "Running in Batch Directory Mode..."
+  show "Scanning directory:" input_target
   
   try {
     let files = list_dir(input_target)
     let count = 0
     
     for file in files {
-      if contains(file, ".html") {
+      if ends_with(file, ".html") {
         prompt target_in {input_target "/" file}
         prompt target_out {output_dir "/" file}
         
@@ -131,8 +131,8 @@ if contains(input_target, ".html") {
       }
     }
     
-    print "Batch HTML minification complete. Processed" count "files."
+    show "Batch HTML minification complete. Processed" count "files."
   } catch (err) {
-    print "Error reading directory. Ensure the path exists and permissions are valid." err
+    show "Error reading directory. Ensure the path exists and permissions are valid." err
   }
 }

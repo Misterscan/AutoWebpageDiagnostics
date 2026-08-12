@@ -20,26 +20,26 @@ Examples:
 */
 
 fn show_help() {
-  print "line-swap.sesi — line-by-line text swap helper"
-  print ""
-  print "Usage:"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to>"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --dry-run"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --lines <start> <end>"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --backup"
-  print "  sesi helpers/line-swap.sesi <path> <from> <to> --exact"
-  print ""
-  print "Options:"
-  print "  --dry-run        Preview changes without writing to disk"
-  print "  --lines N M      Only swap within line range N to M (1-indexed, inclusive)"
-  print "  --backup         Archive the original file before overwriting"
-  print "  --exact          Skip matches where the next character is alphanumeric or _ (avoids substring collisions)"
-  print ""
-  print "Examples:"
-  print "  sesi helpers/line-swap.sesi src/main.sesi \"let debug = true\" \"let debug = false\""
-  print "  sesi helpers/line-swap.sesi README.md \"v1.0\" \"v2.0\" --dry-run"
-  print "  sesi helpers/line-swap.sesi app.sesi \"old_fn\" \"new_fn\" --lines 10 50"
-  print "  sesi helpers/line-swap.sesi config.sesi \"staging\" \"production\" --backup"
+  show "line-swap.sesi — line-by-line text swap helper"
+  show ""
+  show "Usage:"
+  show "  sesi helpers/line-swap.sesi <path> <from> <to>"
+  show "  sesi helpers/line-swap.sesi <path> <from> <to> --dry-run"
+  show "  sesi helpers/line-swap.sesi <path> <from> <to> --lines <start> <end>"
+  show "  sesi helpers/line-swap.sesi <path> <from> <to> --backup"
+  show "  sesi helpers/line-swap.sesi <path> <from> <to> --exact"
+  show ""
+  show "Options:"
+  show "  --dry-run        Preview changes without writing to disk"
+  show "  --lines N M      Only swap within line range N to M (1-indexed, inclusive)"
+  show "  --backup         Archive the original file before overwriting"
+  show "  --exact          Skip matches where the next character is alphanumeric or _ (avoids substring collisions)"
+  show ""
+  show "Examples:"
+  show "  sesi helpers/line-swap.sesi src/main.sesi \"let debug = true\" \"let debug = false\""
+  show "  sesi helpers/line-swap.sesi README.md \"v1.0\" \"v2.0\" --dry-run"
+  show "  sesi helpers/line-swap.sesi app.sesi \"old_fn\" \"new_fn\" --lines 10 50"
+  show "  sesi helpers/line-swap.sesi config.sesi \"staging\" \"production\" --backup"
 }
 
 let word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
@@ -111,11 +111,11 @@ fn parse_options() {
         options["line_end"] = num(args[i + 2])
         i = i + 3
       } else {
-        print "Missing values for --lines <start> <end>"
+        show "Missing values for --lines <start> <end>"
         i = i + 1
       }
     } else {
-      print "Ignoring unknown option:" key
+      show "Ignoring unknown option:" key
       i = i + 1
     }
   }
@@ -145,7 +145,7 @@ fn read_text(path: str) {
   try {
     return read_file(path)
   } catch (err) {
-    print "Read failed for" path ":" err
+    show "Read failed for" path ":" err
     return null
   }
 }
@@ -155,7 +155,7 @@ fn write_text(path: str, text: str) -> bool {
     write_file(path, text)
     return true
   } catch (err) {
-    print "Write failed for" path ":" err
+    show "Write failed for" path ":" err
     return false
   }
 }
@@ -190,8 +190,8 @@ fn run_swap(path: str, from_text: str, to_text: str, options) {
           push(updated_lines, new_line)
 
           if options["dry_run"] {
-            print "[line " line_number "] -" line
-            print "[line " line_number "] +" new_line
+            show "[line " line_number "] -" line
+            show "[line " line_number "] +" new_line
           }
 
           swap_count = swap_count + 1
@@ -207,23 +207,23 @@ fn run_swap(path: str, from_text: str, to_text: str, options) {
   }
 
   if swap_count == 0 {
-    print "No matches found for:" from_text
+    show "No matches found for:" from_text
     return null
   }
 
-  print "Lines matched:" swap_count
+  show "Lines matched:" swap_count
 
   if options["dry_run"] {
-    print "[dry-run] No changes written to" path
+    show "[dry-run] No changes written to" path
     return null
   }
 
   if options["backup"] {
     try {
       archive(path)
-      print "Backup saved for" path
+      show "Backup saved for" path
     } catch (err) {
-      print "Backup failed:" err
+      show "Backup failed:" err
     }
   }
 
@@ -233,7 +233,7 @@ fn run_swap(path: str, from_text: str, to_text: str, options) {
   let ok = write_text(path, result)
 
   if ok {
-    print "Done. Saved:" path
+    show "Done. Saved:" path
   }
 }
 
@@ -242,7 +242,7 @@ if len(args) == 0 {
 } else if args[0] == "help" {
   show_help()
 } else if len(args) < 3 {
-  print "Missing arguments."
+  show "Missing arguments."
   show_help()
 } else {
   let path = args[0]

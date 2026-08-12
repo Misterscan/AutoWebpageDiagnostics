@@ -9,7 +9,7 @@
     allow "AutoWebDiagnostics" in with {run, seo}
 */
 
-allow "main" in with Main
+allow "main" in as Main
 
 export fn run(targetUrl: string, outputDir: string) -> object {
   return Main.run(targetUrl, outputDir)

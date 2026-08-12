@@ -5,3 +5,4 @@ dist/
 .sesi_cache.json
 sesi_modules/
 reports/
+.DS_Store
